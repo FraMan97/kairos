@@ -59,7 +59,7 @@ It's unique feature is its "time-lock" mechanism. This allows users to upload fi
 
 * **End-to-End File Encryption**: Before being fragmented, each block of the original file is individually encrypted using AES-GCM with a unique, randomly generated key. This ensures the file content remains completely unreadable to the peers storing it.
 
-* **Decentralized Key Management**: The AES encryption key for each block is split into multiple parts using Shamir's Secret Sharing. These key parts are distributed across different nodes along with the data shards, meaning no single node ever holds both a piece of data and the full key required to decrypt it.
+* **Decentralized Key Management**: Each AES encryption key for each block is split into multiple parts using Shamir's Secret Sharing. These key parts are distributed across different nodes along with the data shards, meaning no single node ever holds both a piece of data and the full key required to decrypt it.
 
 * **Data Resiliency (Reed-Solomon)**: The encrypted file blocks are fragmented using Reed-Solomon erasure coding, splitting them into data shards and parity shards. This allows the original file to be fully reconstructed even if multiple nodes or data chunks are lost or unavailable.
 
@@ -124,7 +124,7 @@ A simple interface used to send commands to the local backend (`start`, `put` an
 
 * **Client A** (the uploader) starts the node (kairos `start`), creates its .onion service and registers itself with a **Bootstrap Server**. Other peers (Clients B, C, D...) do the same.
 * **Client A** runs kairos `put` with a file and a release_time.
-* **Client A**'s backend encrypts (AES), fragments the blocks (Reed-Solomon) and splits each key (Shamir) for the file into chunks.
+* **Client A**'s backend generates a unique random AES key for each file block, encrypts the block, and fragments it using Reed-Solomon. The key is then split using Shamir's Secret Sharing, with each key fragment being paired with a specific data chunk.
 * **Client A** contacts the `Bootstrap Server` to request a list of active nodes (e.g. it receives Clients B, C, D).
 * **Client A** generates a FileManifest mapping which chunk will go to which peer (e.g. chunk 1 -> Client B, chunk 2 -> Client C...) and sets the release_time. This manifest does not contain chunk data.
 * **Client A** signs and uploads this FileManifest to the `Bootstrap Server`. The server stores it.
