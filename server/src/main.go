@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, _ := context.WithCancel(context.Background())
 
 	_, err := service.StartTor()
 	if err != nil {
@@ -46,7 +46,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	go service.ServerBootstrapSync(ctx, cancel)
+	go service.ServerBootstrapSync(ctx)
+
+	go service.CleanOldRecords(ctx)
 
 	http.HandleFunc("/subscribe", view.Subscribe)
 

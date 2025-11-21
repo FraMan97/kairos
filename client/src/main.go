@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 )
 
 func main() {
+	ctx, _ := context.WithCancel(context.Background())
 	_, err := service.OpenDatabase()
 	if err != nil {
 		log.Println("[Main] - Error opening database: ", err)
@@ -32,6 +34,8 @@ func main() {
 	http.HandleFunc("/get", view.Get)
 
 	http.HandleFunc("/chunk", view.Chunk)
+
+	go service.CleanOldRecords(ctx)
 
 	log.Printf("[Main] - The Kairos node is listening to localhost:%s\n", strconv.Itoa(config.Port))
 

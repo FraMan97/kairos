@@ -88,6 +88,8 @@ This is a lightweight Go server that acts as an anonymous "phone book" and manif
 * It runs as its own Tor Onion Service (.onion).
 
 * Its purpose is to maintain a list of active peers (nodes) and store the FileManifest (metadata) for files in the network.
+  
+* Its synchronizes its data with the other Bootstrap Servers periodically and delete the old data (manifest files and active users) from the database after a desired time.
 
 * **It never handles or sees any actual file chunks.**
 
@@ -112,6 +114,7 @@ This single Go process serves two roles:
 A simple interface used to send commands to the local backend (`start`, `put` and `get`).
 
 * The client's backend spawns its own Tor process to become a fully anonymous peer in the network.
+  
 * All outgoing communication is forcibly routed through the local Tor SOCKS proxy.
 
 
@@ -249,7 +252,7 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
     * After starting, Tor will generate the hidden service files.
 
-    * Copy the `.onion` address (e.g., `tw4dj6...exqd.onion`) in the `config.go' file inside the variable `BootStrapServers` and inside the `/client` . **This is your Bootstrap Server address.**
+    * Copy the `.onion` address (e.g., `tw4dj6...exqd.onion`) in the `config.go` file inside the variable `BootStrapServers`.
 
 
 
@@ -395,5 +398,4 @@ This project was designed with security and anonymity as the highest priorities.
 
 Here is future planned developments:
 
-* Add cron function which cleans old database records
-
+* Evaluate rate limit on clients and servers
