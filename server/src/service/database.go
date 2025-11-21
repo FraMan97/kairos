@@ -3,12 +3,18 @@ package service
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/FraMan97/kairos/server/src/config"
 	"github.com/boltdb/bolt"
 )
 
 func OpenDatabase() (*bolt.DB, error) {
+
+	err := os.MkdirAll("../database", 0700)
+	if err != nil {
+		return nil, err
+	}
 	db, err := bolt.Open("../database/kairos_boltdb.db", 0600, &bolt.Options{})
 	if err != nil {
 		return nil, err
@@ -68,6 +74,21 @@ func PutData(db *bolt.DB, bucketName string, key string, data []byte) error {
 			return err
 		}
 		log.Printf("[%s] - Inserted in bucket '%s' new data with key '%s'\n", config.DatabaseService, bucketName, key)
+		return nil
+	})
+}
+
+func DeleteKey(db *bolt.DB, bucketName string, key string) error {
+	return db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return fmt.Errorf("[%s] - bucket '%s' not found", config.DatabaseService, bucketName)
+		}
+		err := b.Delete([]byte(key))
+		if err != nil {
+			return err
+		}
+		log.Printf("[%s] - Deleted the key '%s' in bucket '%s'\n", config.DatabaseService, key, bucketName)
 		return nil
 	})
 }

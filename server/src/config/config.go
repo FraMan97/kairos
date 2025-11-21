@@ -16,6 +16,7 @@ var (
 	SocksPort        int      = 9051
 	BootStrapServers []string = []string{"rtet7prci243bl7eo7bufw535sf7mzmbaggwy5abjxwrskqa6263xpqd.onion:3000"} // add more bootstrap servers
 	CronSync         int      = 10
+	CronClean        int      = 3600
 	MaxNodesReturned int      = 50
 	DatabaseService           = "BoltDB"
 	TorPath                   = "../tor/tor-bundle-default/tor/tor"

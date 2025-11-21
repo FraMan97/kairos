@@ -14,8 +14,8 @@ import (
 	"github.com/FraMan97/kairos/server/src/model"
 )
 
-func ServerBootstrapSync(ctx context.Context, cancel context.CancelFunc) {
-	ticker := time.NewTicker(getDelay())
+func ServerBootstrapSync(ctx context.Context) {
+	ticker := time.NewTicker(getDelay(config.CronSync))
 	defer ticker.Stop()
 
 	for {
@@ -25,7 +25,6 @@ func ServerBootstrapSync(ctx context.Context, cancel context.CancelFunc) {
 
 		case <-ctx.Done():
 			log.Println("[Sync] - Context cancelled, stopping ticker")
-			cancel()
 			return
 		}
 	}
@@ -90,9 +89,9 @@ func sync() {
 	}
 }
 
-func getDelay() time.Duration {
-	jitter := time.Duration(rand.Intn(config.CronSync)) * time.Second
-	delay := jitter + time.Duration(config.CronSync)*time.Second
+func getDelay(cron int) time.Duration {
+	jitter := time.Duration(rand.Intn(cron)) * time.Second
+	delay := jitter + time.Duration(cron)*time.Second
 	return delay
 }
 
