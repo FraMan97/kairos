@@ -143,7 +143,7 @@ A simple interface used to send commands to the local backend (`start`, `put` an
 
 The peers (B, C, D) receive their chunks and save them to their local BoltDB to hold.
 
-### Download Flow (Client Z gets the file)
+#### Download Flow (Client Z gets the file)
 
 * **Client Z** (the downloader) knows the FileId for the file.
 * **Client Z** runs kairos `get` --file-id="...".
