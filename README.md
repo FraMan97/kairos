@@ -31,27 +31,25 @@ Its unique feature is its `time-lock` mechanism, powered by **Drand**. By levera
 
 * [System Architecture](#system-architecture)
 
-    * [The Server (Bootstrap Node)](#the-server-bootstrap-node)
-    
-    * [The Client and Cli](#the-client--cli-p2p-peer)
+    * [The Server](#the-server)
 
-    * [Communication Flow](#communication-flow)
+    * [The Client and Cli](#the-client-and-cli)
+
+    * [Communication Flow](#communication-flow)
 
 * [Technology Stack](#technology-stack)
 
 * [Installation and Setup](#installation-and-setup)
 
-    * [Prerequisites](#prerequisites)
+    * [Prerequisites](#prerequisites)
 
-    * [1. Server Setup](#1-server-setup)
+    * [1. Server Setup](#1-server-setup)
 
-    * [2. Client Setup](#2-client-setup)
-      
-    * [3. CLI Setup](#3-cli-setup)
+    * [2. Client Setup](#2-client-setup)
+      
+    * [3. CLI Setup](#3-cli-setup)
 
 * [Security Considerations](#security-considerations)
-
-* [Roadmap](#roadmap)
 
 
 
@@ -73,7 +71,7 @@ Its unique feature is its `time-lock` mechanism, powered by **Drand**. By levera
 
 * **Data Resiliency (Reed-Solomon)**: The encrypted file blocks are fragmented using Reed-Solomon erasure coding, splitting them into data shards and parity shards. This allows the original file to be fully reconstructed even if multiple nodes or data chunks are lost or unavailable.
 
-* **Embedded Storage**: All data  is stored using Bolt DB, an embedded key/value local storage on client and server side.
+* **Embedded Storage**: All data  is stored using Bolt DB, an embedded key/value local storage on client and server side.
 
 * **Strong Authentication**: All critical network actions, such as uploading a file manifest or requesting a chunk, are protected by Ed25519 digital signatures. This verifies the sender's identity and ensures the integrity of the request.
 
@@ -91,14 +89,14 @@ Its unique feature is its `time-lock` mechanism, powered by **Drand**. By levera
 
 The system is split into two main components:
 
-### The Server (Bootstrap Node)
+### The Server
 
 This is a lightweight Go server that acts as an anonymous "phone book" and manifest host.
 
 * It runs as its own Tor Onion Service (.onion).
 
 * Its purpose is to maintain a list of active peers (nodes) and store the FileManifest (metadata) for files in the network.
-  
+  
 * Its synchronizes its data with the other Bootstrap Servers periodically and delete the old data (manifest files and active users) from the database after a desired time.
 
 * **It never handles or sees any actual file chunks.**
@@ -107,11 +105,11 @@ This is a lightweight Go server that acts as an anonymous "phone book" and manif
 
 * It uses an embedded BoltDB to store active node lists and file manifests.
 
-### The Client & Cli (P2P Peer)
+### The Client and Cli
 
 This is the application the user runs. It is a hybrid app consisting of a Go backend and a command-line interface (CLI).
 
-#### The Backend (`/client`): 
+#### The Backend (`/client`): 
 
 This single Go process serves two roles:
 
@@ -119,12 +117,12 @@ This single Go process serves two roles:
 
 * **Onion Peer API**: When started via the start command, it spawns its own Tor process to create a public .onion address. It listens on this address to receive chunks (SaveChunk) and serve chunks (GetChunk) to other peers.
 
-### The Command-Line Interface (`/cli`): 
+### The Command-Line Interface (`/cli`): 
 
 A simple interface used to send commands to the local backend (`start`, `put` and `get`).
 
 * The client's backend spawns its own Tor process to become a fully anonymous peer in the network.
-  
+  
 * All outgoing communication is forcibly routed through the local Tor SOCKS proxy.
 
 
@@ -175,16 +173,16 @@ The peers (B, C, D) receive their chunks and save them to their local BoltDB to 
 
 * **Network & Proxy**:
 
-  1. **Tor** (managed as an os/exec process)
-  2. **golang.org/x/net/proxy** (for the SOCKS5 proxy client)
-  3. **Go native net/http** (for local and peer APIs)
+  1. **Tor** (managed as an os/exec process)
+  2. **golang.org/x/net/proxy** (for the SOCKS5 proxy client)
+  3. **Go native net/http** (for local and peer APIs)
 
 * **Cryptography**:
-  
-  1. **Go native crypto module** (for crypto/ed25519 and crypto/aes)
-  2. **github.com/klauspost/reedsolomon** (for Reed-Solomon coding)
-  3. **github.com/corvus-ch/shamir** (for Shamir's Secret Sharing)
-  4. **github.com/drand/tlock** (for Drand Time-lock encryption)
+  
+  1. **Go native crypto module** (for crypto/ed25519 and crypto/aes)
+  2. **github.com/klauspost/reedsolomon** (for Reed-Solomon coding)
+  3. **github.com/corvus-ch/shamir** (for Shamir's Secret Sharing)
+  4. **github.com/drand/tlock** (for Drand Time-lock encryption)
 ---
 
 
@@ -215,121 +213,119 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 
 
-1.  **Clone the repository:**
+1.  **Clone the repository:**
 
-    ```bash
+    ```bash
 
-    git clone https://github.com/FraMan97/kairos.git
+    git clone https://github.com/FraMan97/kairos.git
 
-    cd kairos/server
+    cd kairos/server
 
-    ```
-
-
-
-2.  **Install dependencies:**
-
-    ```bash
-
-    go mod tidy
-
-    ```
+    ```
 
 
 
-3.  **Configure Tor:**
+2.  **Install dependencies:**
 
-    * Extract the **Tor Expert Bundle** you downloaded into the `server/internal` directory.
+    ```bash
 
-    * Rename the folder to `tor-bundle-default`.
+    go mod tidy
 
-
-
-
-4.  **Start the server (with flag --bootstrap-servers=`6smhzrvdwljwlyaov7lqi7w5m6gzbcqtcyvo6mjkco47beou7ucafyyd.onion:3000`,`6smhzrvdwljwlyaov7lqi7w5mkslbcqtcyvo6mjkco47beou7ucafyyd.onion:3001`,.. or --no-bootstrap-servers):**
-
-    ```bash
-
-    cd cmd/k-server
-
-    go run . [--bootstrap-servers or --no-bootstrap-servers]
-
-    ```
-   
-
-
-5.  **Get the Server's Onion Address:**
-
-    * After starting, Tor will generate the hidden service and the public_key and private_key in the home directory (`~/.kairos/server/keys`)
+    ```
 
 
 
-6.  **Database file generation:**
+3.  **Configure Tor:**
 
-    * After starting, a file `kairos_boltdb.db` file is generated in the home directory (`~/.kairos/server/database`)
+    * Extract the **Tor Expert Bundle** you downloaded into the `server/internal` directory.
+
+    * Rename the folder to `tor-bundle-default`.
+
+
+
+
+4.  **Start the server (with flag --bootstrap-servers=`6smhzrvdwljwlyaov7lqi7w5m6gzbcqtcyvo6mjkco47beou7ucafyyd.onion:3000`,`6smhzrvdwljwlyaov7lqi7w5mkslbcqtcyvo6mjkco47beou7ucafyyd.onion:3001`,.. or --no-bootstrap-servers):**
+
+    ```bash
+
+    cd cmd/k-server
+
+    go run . [--bootstrap-servers or --no-bootstrap-servers]
+
+    ```
+   
+
+
+5.  **Get the Server's Onion Address:**
+
+    * After starting, the public_key and private_key of Tor are generated in the home directory (`~/.kairos/server/keys`)
+
+
+
+6.  **Database file generation:**
+
+    * After starting, a file `kairos_boltdb.db` is generated in the home directory (`~/.kairos/server/database`)
 
 
 
 ### 2. Client Setup
 
-1.  **Clone the repository:**
+1.  **Clone the repository:**
 
-    ```bash
+    ```bash
 
-    git clone https://github.com/FraMan97/kairos.git
+    git clone https://github.com/FraMan97/kairos.git
 
-    cd kairos/client
+    ```
 
-    ```
+2.  **Open a new terminal and navigate to the `client` directory:**
 
-2.  **Open a new terminal and navigate to the `client` directory:**
+    ```bash
 
-    ```bash
+    cd kairos/client
 
-    cd kairos/client
-
-    ```
+    ```
 
 
 
-3.  **Install dependencies:**
+3.  **Install dependencies:**
 
-    ```bash
+    ```bash
 
-    go mod tidy
+    go mod tidy
 
-    ```
-
-
-
-3.  **Configure Tor (same as server):**
-
-    * Extract the **Tor Expert Bundle** into the `client/internal` directory.
-
-    * Rename the folder to `tor-bundle-default`.
+    ```
 
 
 
-4.  **Configure the destination directory which will contain the downlodable files:**
+3.  **Configure Tor (same as server):**
 
-    * In the file `client/internal/config/config.go` change the variable `FileGetDestDir`
+    * Extract the **Tor Expert Bundle** into the `client/internal` directory.
 
-
-
-5.  **Build and start the client (use the flag --bootstrap-server and set with the bootstrap servers .onion address including the port `6smhzrvdwljwlyaov7lqi7w5m6gzbcqtcyvo6mjkco47beou7ucafyyd.onion:3000`):**
-
-    ```bash
-
-    cd cmd/k-client
-    go run . [--bootstrap-servers or --no-bootstrap-servers]
-
-    ```
+    * Rename the folder to `tor-bundle-default`.
 
 
 
-6.  **Database file generation:**
+4.  **Configure the destination directory which will contain the downlodable files:**
 
-    * After starting, a file `kairos_boltdb.db` file is generated in the home directory (`~/.kairos/client/database`)
+    * In the file `client/internal/config/config.go` change the variable `FileGetDestDir`
+
+
+
+5.  **Build and start the client (use the flag --bootstrap-server and set with the bootstrap servers .onion address including the port `6smhzrvdwljwlyaov7lqi7w5m6gzbcqtcyvo6mjkco47beou7ucafyyd.onion:3000`):**
+
+    ```bash
+
+    cd cmd/k-client
+    go run . [--bootstrap-servers or --no-bootstrap-servers]
+
+    ```
+
+
+
+6.  **Database file generation:**
+
+    * After starting, a file `kairos_boltdb.db` is generated in the home directory (`~/.kairos/client/database`)
 
 
 
@@ -337,54 +333,54 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 
 
-1.  **Open a new terminal and navigate to the `cli` directory:**
+1.  **Open a new terminal and navigate to the `cli` directory:**
 
-    ```bash
+    ```bash
 
-    cd kairos/cli
+    cd kairos/cli
 
-    ```
-
-
-
-2.  **Install dependencies:**
-
-    ```bash
-
-    go mod tidy
-
-    ```
+    ```
 
 
 
-3.  **Link CLI to Client:**
+2.  **Install dependencies:**
 
-    * Open the `cli/config/config.go` file.
+    ```bash
 
-    * Paste the client's `port` into the `Port` variable. 
+    go mod tidy
 
-        ```config.go
-
-        Port=8081
-
-        ```
+    ```
 
 
 
-3.  **Launch different commands:**
+3.  **Link CLI to Client:**
 
-    ```bash
+    * Open the `cli/config/config.go` file.
 
-    go run . start
-    go run . put --file-path=/path/to/file --release-time=2025-12-01T15:00:00Z
-    go run . get --fileId=mahdska...
+    * Paste the client's `port` into the `Port` variable. 
 
-    ```
+        ```config.go
+
+        Port=8081
+
+        ```
 
 
-4.  **Get the Client's Onion Address:**
 
-    * After the `start` command, Tor will generate the hidden service and the public_key and private_key in the home directory (`~/.kairos/client/keys`)
+3.  **Launch different commands:**
+
+    ```bash
+
+    go run . start
+    go run . put --file-path=/path/to/file --release-time=2025-12-01T15:00:00Z
+    go run . get --fileId=mahdska...
+
+    ```
+
+
+4.  **Get the Client's Onion Address:**
+
+    * After the `start` command, Tor will generate the hidden service and the public_key and private_key in the home directory (`~/.kairos/client/keys`)
 
 
 ---
@@ -414,13 +410,3 @@ This project was designed with security and anonymity as the highest priorities.
 
 
 ---
-
-
-
-## Roadmap
-
-
-
-Here is future planned developments:
-
-* Evaluate rate limit on clients and servers
