@@ -2,7 +2,7 @@
 
 `kairos` is an anonymous, decentralized peer-to-peer (P2P) file-sharing system. It is designed to provide maximum privacy by combining the anonymity of the Tor network with a secure, resilient storage architecture.
 
-It's unique feature is its "time-lock" mechanism. This allows users to upload files that remain encrypted, fragmented and inaccessible to anyone until a specific release date and time has passed. Before this time, the peer nodes hosting the data will refuse to serve the file's chunks, ensuring that data is only made public at the predetermined moment.
+Its unique feature is its `time-lock` mechanism, powered by **Drand**. By leveraging Drand's distributed time-lock encryption, uploaded files remain cryptographically sealed and inaccessible until a specific release date and time has passed. This ensures that data decryption is mathematically impossible before the predetermined moment, guaranteeing a secure release without relying on the honesty of the storage nodes..
 
 
 > [!WARNING]
@@ -23,7 +23,7 @@ It's unique feature is its "time-lock" mechanism. This allows users to upload fi
 
     * [The Server (Bootstrap Node) (`/server`)](#the-server-(bootstrap-node))
 
-    * [The Client and Cli (`/client`)](#the-client-and-cli)
+    * [The Client and Cli (`/client` and `/cli`)](#the-client-and-cli)
 
     * [Communication Flow](#communication-flow)
 
@@ -55,7 +55,7 @@ It's unique feature is its "time-lock" mechanism. This allows users to upload fi
 
 * **Complete Anonymity via Tor**: All network communication, including peer discovery with bootstrap servers and direct P2P file transfers, is routed through the Tor network. Clients and servers operate as .onion hidden services, ensuring no real IP addresses are ever exposed or logged.
 
-* **Time-Lock Release Mechanism**: Users must specify a release_time (e.g., 2025-12-01T15:00:00Z) when uploading a file. Peer nodes storing the file's data will refuse to serve any chunks until the current system time is past this specified release date.
+* **Time-Lock Release Mechanism**: Users must specify a release-time flag (e.g., 2025-12-01T15:00:00Z) when uploading a file. Unlike traditional systems that rely on server trust, Kairos uses Drand time-lock encryption. The block's decryption keys are cryptographically sealed against a future "round" of the Drand beacon network. This ensures that the content remains mathematically inaccessible to everyone (including the storage nodes) until the Drand network publishes the randomness for that specific time, guaranteeing a secure and trustless release.
 
 * **End-to-End File Encryption**: Before being fragmented, each block of the original file is individually encrypted using AES-GCM with a unique, randomly generated key. This ensures the file content remains completely unreadable to the peers storing it.
 
@@ -67,7 +67,7 @@ It's unique feature is its "time-lock" mechanism. This allows users to upload fi
 
 * **Strong Authentication**: All critical network actions, such as uploading a file manifest or requesting a chunk, are protected by Ed25519 digital signatures. This verifies the sender's identity and ensures the integrity of the request.
 
-* **Simple CLI Interface**: Users interact with the network via a straightforward command-line interface. Key commands include **start** to add the local client to the network as Karios node, **put** to upload a file through different nodes and set its release-time and **get** to download and reconstruct a file using its unique ID.
+* **Simple CLI Interface**: Users interact with the network via a straightforward command-line interface. Key commands include **start** to add the local client to the network as Kairos node, **put** to upload a file through different nodes and set its release-time and **get** to download and reconstruct a file using its unique ID.
 
 
 
@@ -126,8 +126,8 @@ A simple interface used to send commands to the local backend (`start`, `put` an
 #### Upload Flow (Client A puts a file)
 
 * **Client A** (the uploader) starts the node (kairos `start`), creates its .onion service and registers itself with a **Bootstrap Server**. Other peers (Clients B, C, D...) do the same.
-* **Client A** runs kairos `put` with a file and a release_time.
-* **Client A**'s backend generates a unique random AES key for each file block, encrypts the block, and fragments it using Reed-Solomon. The key is then split using Shamir's Secret Sharing, with each key fragment being paired with a specific data chunk.
+* **Client A** runs kairos `put` with file-path and release-time flags.
+* **Client A**'s backend generates a unique random AES key for each file block, encrypts the block, and fragments it using Reed-Solomon. The key is first encrypted using Drand time-lock encryption, targeting the specific beacon round corresponding to the release_time. This time-locked key is then split using Shamir's Secret Sharing, with each key fragment being paired with a specific data chunk
 * **Client A** contacts the `Bootstrap Server` to request a list of active nodes (e.g. it receives Clients B, C, D).
 * **Client A** generates a FileManifest mapping which chunk will go to which peer (e.g. chunk 1 -> Client B, chunk 2 -> Client C...) and sets the release_time. This manifest does not contain chunk data.
 * **Client A** signs and uploads this FileManifest to the `Bootstrap Server`. The server stores it.
@@ -138,16 +138,14 @@ The peers (B, C, D) receive their chunks and save them to their local BoltDB to 
 ### Download Flow (Client Z gets the file)
 
 * **Client Z** (the downloader) knows the FileId for the file.
-* **Client Z** runs kairos `get` --file-id "...".
+* **Client Z** runs kairos `get` --file-id="...".
 * **Client Z** contacts the `Bootstrap Server` and requests the FileManifest using the FileId.
 * **The Bootstrap Server** finds the manifest and sends it to `Client Z`. `The Bootstrap Server` is no longer involved.
 * **Client Z** reads the manifest and sees it needs chunks from Clients B, C, D...
 * **Client Z** connects directly to `Client B` at its .onion address and requests chunk 1 of block 1.
-* **Client B** checks the release_time for chunk 1:
- 1. If the time has not passed, it returns an error.
- 2. If the time has passed, it sends chunk 1 to `Client Z`.
+* **Client B** it sends chunk 1 to `Client Z`.
 * **Client Z** repeats this process for all necessary chunks for the block 1 with Clients C, D, etc.
-* Once **Client Z** has enough chunks and key parts of each block, it reconstructs blocks (Shamir, Reed-Solomon), decrypts them (AES)  and assembles them to obtain the original file locally.
+* Once **Client Z** has collected enough data chunks and key fragments, it first reconstructs the time-locked keys using Shamir's Secret Sharing. It then decrypts these keys using Drand (by fetching the randomness for the specific round). Only after revealing the valid AES key does it reconstruct the data blocks (Reed-Solomon), decrypt them and assemble the original file locally.
 
 
 
@@ -176,6 +174,7 @@ The peers (B, C, D) receive their chunks and save them to their local BoltDB to 
   1. **Go native crypto module** (for crypto/ed25519 and crypto/aes)
   2. **github.com/klauspost/reedsolomon** (for Reed-Solomon coding)
   3. **github.com/corvus-ch/shamir** (for Shamir's Secret Sharing)
+  4. **github.com/drand/tlock** (for Drand Time-lock encryption)
 ---
 
 
@@ -192,9 +191,9 @@ This project requires manual configuration to set up the Tor services.
 >
 >
 >
-> * Go (v 1.20 or later)
+> * Go (v 1.24 or later)
 >
-> * **Tor Expert Bundle:** You **must** download the correct Tor Expert Bundle for your OS (Linux, Windows, or macOS) from the [official Tor Project website](https://www.torproject.org/download/expert/).
+> * **Tor Expert Bundle:** You **must** download the correct Tor Expert Bundle for your OS (Linux is the only supported for now) from the [official Tor Project website](https://www.torproject.org/download/expert/).
 
 
 
@@ -206,11 +205,11 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 
 
-1.  Clone the repository:
+1.  **Clone the repository:**
 
     ```bash
 
-    git clone https://github.com/FraMan97/prometis.git
+    git clone https://github.com/FraMan97/kairos.git
 
     cd kairos/server
 
@@ -218,7 +217,7 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 
 
-2.  Install dependencies:
+2.  **Install dependencies:**
 
     ```bash
 
@@ -230,37 +229,50 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 3.  **Configure Tor:**
 
-    * Extract the **Tor Expert Bundle** you downloaded into the `server/` directory.
+    * Extract the **Tor Expert Bundle** you downloaded into the `server/internal` directory.
 
-    * Rename the extracted folder (e.g., `tor-expert-bundle-linux...`) to a simple name, like `tor-bundle-default`.
-
-    * Edit the `config.go` file (`/server/src/config`) and set `TorPath` and `TorDataDir` to match (e.g., `TorPath="../tor/tor-bundle-default/tor/tor"`).
+    * Rename the folder to `tor-bundle-default`.
 
 
 
-4.  Start the server:
+
+4.  **Start the server (with flag --bootstrap-servers=`6smhzrvdwljwlyaov7lqi7w5m6gzbcqtcyvo6mjkco47beou7ucafyyd.onion:3000`,`6smhzrvdwljwlyaov7lqi7w5mkslbcqtcyvo6mjkco47beou7ucafyyd.onion:3001`,.. or --no-bootstrap-servers):**
 
     ```bash
 
-    go run ./src/main.go
+    cd cmd/k-server
+
+    go run . [--bootstrap-servers or --no-bootstrap-servers]
 
     ```
-
    
+
 
 5.  **Get the Server's Onion Address:**
 
-    * After starting, Tor will generate the hidden service files.
+    * After starting, Tor will generate the hidden service and the public_key and private_key in the home directory (`~/.kairos/server/keys`)
 
-    * Copy the `.onion` address (e.g., `tw4dj6...exqd.onion`) in the `config.go` file inside the variable `BootStrapServers`.
+
+
+6.  **Database file generation:**
+
+    * After starting, a file `kairos_boltdb.db` file is generated in the home directory (`~/.kairos/server/database`)
 
 
 
 ### 2. Client Setup
 
+1.  **Clone the repository:**
 
+    ```bash
 
-1.  Open a **new** terminal and navigate to the `client` directory:
+    git clone https://github.com/FraMan97/kairos.git
+
+    cd kairos/client
+
+    ```
+
+2.  **Open a new terminal and navigate to the `client` directory:**
 
     ```bash
 
@@ -270,7 +282,7 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 
 
-2.  Install dependencies:
+3.  **Install dependencies:**
 
     ```bash
 
@@ -282,35 +294,32 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 3.  **Configure Tor (same as server):**
 
-    * Extract the **Tor Expert Bundle** into the `client/` directory.
+    * Extract the **Tor Expert Bundle** into the `client/internal` directory.
 
-    * Rename the folder to `tor-bundle-default` (or a name of your choice).
-
-    * Edit the `config.go` file (`/client/src/config`) and set `TorPath` and `TorDataDir` to match (e.g., `TorPath="../tor/tor-bundle-default/tor/tor"`).
+    * Rename the folder to `tor-bundle-default`.
 
 
 
-4.  **Link Client to Server:**
+4.  **Configure the destination directory which will contain the downlodable files:**
 
-    * Open the `client/src/config/config.go` file.
-
-    * Paste the server's `.onion` address (from step 5 above) into the `BootstrapServers` variable. You must also add the port:
-
-        ```config.go
-
-        BootstrapServers=["tw4dj6...exqd.onion:3000"]
-
-        ```
+    * In the file `client/internal/config/config.go` change the variable `FileGetDestDir`
 
 
 
-5.  Build and start the client:
+5.  **Build and start the client (use the flag --bootstrap-server and set with the bootstrap servers .onion address including the port `6smhzrvdwljwlyaov7lqi7w5m6gzbcqtcyvo6mjkco47beou7ucafyyd.onion:3000`):**
 
     ```bash
 
-    go run ./src/main.go
+    cd cmd/k-client
+    go run . [--bootstrap-servers or --no-bootstrap-servers]
 
     ```
+
+
+
+6.  **Database file generation:**
+
+    * After starting, a file `kairos_boltdb.db` file is generated in the home directory (`~/.kairos/client/database`)
 
 
 
@@ -318,7 +327,7 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 
 
-1.  Open a **new** terminal and navigate to the `cli` directory:
+1.  **Open a new terminal and navigate to the `cli` directory:**
 
     ```bash
 
@@ -328,7 +337,7 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 
 
-2.  Install dependencies:
+2.  **Install dependencies:**
 
     ```bash
 
@@ -340,7 +349,7 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 3.  **Link CLI to Client:**
 
-    * Open the `cli/src/config/config.go` file.
+    * Open the `cli/config/config.go` file.
 
     * Paste the client's `port` into the `Port` variable. 
 
@@ -352,16 +361,20 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
 
 
-3.  Launch different commands:
+3.  **Launch different commands:**
 
     ```bash
 
-    cd ./src
     go run . start
     go run . put --file-path=/path/to/file --release-time=2025-12-01T15:00:00Z
     go run . get --fileId=mahdska...
 
     ```
+
+
+4.  **Get the Client's Onion Address:**
+
+    * After the `start` command, Tor will generate the hidden service and the public_key and private_key in the home directory (`~/.kairos/client/keys`)
 
 
 ---
@@ -385,6 +398,8 @@ This project was designed with security and anonymity as the highest priorities.
 * **CLI-Backend Separation**: The user-facing kairos CLI (/cli) only sends HTTP commands to the local client backend running on localhost. All sensitive cryptographic material (like the Ed25519 private key) is managed by the backend process, not the CLI tool.
 
 * **Secure Storage API**: The peer-facing API for retrieving data (GetChunk) is not vulnerable to path traversal attacks. It serves data based on a unique chunkId (UUID) from an embedded BoltDB database, not by reading arbitrary paths from the filesystem.
+
+* **Trustless Time-Lock**: The enforcement of the release time relies on Drand's distributed randomness beacon, not on the honesty of the storage nodes. The block encryption keys are cryptographically sealed against a specific future Drand round. This guarantees that decryption is mathematically impossible before the release time, even if the storage nodes collude or are compromised.
 
 
 
