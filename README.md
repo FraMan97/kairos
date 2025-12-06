@@ -239,7 +239,7 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
     * Extract the **Tor Expert Bundle** you downloaded into the `server/internal` directory.
 
-    * Rename the folder to `tor-bundle-default`.
+    * Rename the folder to `tor-bundle-default` and put it in the folder `server/internal/tor`.
 
 
 
@@ -302,17 +302,17 @@ The Bootstrap Server MUST be set up first, as its onion address is required by t
 
     * Extract the **Tor Expert Bundle** into the `client/internal` directory.
 
-    * Rename the folder to `tor-bundle-default`.
+    * Rename the folder to `tor-bundle-default` and put it in the folder `client/internal/tor`.
 
 
 
-4.  **Configure the destination directory which will contain the downlodable files:**
+4.  **Configure the destination directory which will contain the downloadable ditributed files:**
 
-    * In the file `client/internal/config/config.go` change the variable `FileGetDestDir`
+    * In the file `client/internal/config/config.go` change the variable `FileGetDestDir` with the desired download directory.
 
 
 
-5.  **Build and start the client (use the flag --bootstrap-server and set with the bootstrap servers .onion address including the port `6smhzrvdwljwlyaov7lqi7w5m6gzbcqtcyvo6mjkco47beou7ucafyyd.onion:3000`):**
+5.  **Build and start the client (use the flag --bootstrap-server and set the bootstrap servers .onion address including the port `6smhzrvdwljwlyaov7lqi7w5m6gzbcqtcyvo6mjkco47beou7ucafyyd.onion:3000`):**
 
     ```bash
 
